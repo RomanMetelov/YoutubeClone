@@ -2,6 +2,8 @@ package com.example.youtubeclone
 
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.FrameLayout
 import android.widget.Toast
 import android.widget.Toolbar
@@ -33,6 +35,8 @@ class MainActivity : AppCompatActivity() {
 
         toolbar = binding.toolbar
         setSupportActionBar(toolbar)
+
+        supportActionBar?.setTitle("")
 
         bottomNavigationView = binding.bottomNavigation
         frameLayout = binding.frameLayout
@@ -75,6 +79,29 @@ class MainActivity : AppCompatActivity() {
         val fragmentTransaction = supportFragmentManager.beginTransaction()
         fragmentTransaction.replace(R.id.frame_layout, fragment)
         fragmentTransaction.commit()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.toolbar_menu, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when(item.itemId){
+            R.id.notification ->{
+                Toast.makeText(this, "Notification", Toast.LENGTH_SHORT).show()
+            }
+            R.id.search -> {
+                Toast.makeText(this, "Search", Toast.LENGTH_SHORT).show()
+
+            }
+            R.id.account -> {
+                Toast.makeText(this, "Account", Toast.LENGTH_SHORT).show()
+
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+        return false
     }
 
 }
