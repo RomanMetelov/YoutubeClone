@@ -1,12 +1,14 @@
 package com.example.youtubeclone
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.FrameLayout
-import android.widget.Toast
-import android.widget.Toolbar
+import android.view.ViewGroup
+import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.navigation.findNavController
@@ -18,7 +20,18 @@ import com.example.youtubeclone.fragment.ExploreFragment
 import com.example.youtubeclone.fragment.HomeFragment
 import com.example.youtubeclone.fragment.LibraryFragment
 import com.example.youtubeclone.fragment.SubscriptionsFragment
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.database.FirebaseDatabase
+import java.lang.Exception
+import java.util.*
+import kotlin.collections.HashMap
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,6 +39,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     private lateinit var bottomNavigationView: BottomNavigationView
     private lateinit var frameLayout: FrameLayout
+
+    private lateinit var userprofile_image: ImageView
+
+    private lateinit var mGoogleSignInClient: GoogleSignInClient
+    private val RC_SIGN_IN = 100
+
+    private lateinit var auth: FirebaseAuth
+//    private lateinit var user : FirebaseUser
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +61,17 @@ class MainActivity : AppCompatActivity() {
 
         bottomNavigationView = binding.bottomNavigation
         frameLayout = binding.frameLayout
+
+        auth = FirebaseAuth.getInstance()
+        val user = auth.currentUser
+
+        userprofile_image = binding.userProfileImage
+
+        val gsc = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestServerAuthCode("730122274521-t10nlhj8p6rjjo76ftcuhp3a7dphka93.apps.googleusercontent.com")
+            .requestEmail()
+            .build()
+        mGoogleSignInClient = GoogleSignIn.getClient(this, gsc)
 
         bottomNavigationView.setOnNavigationItemSelectedListener {
             when (it.itemId) {
@@ -73,6 +105,69 @@ class MainActivity : AppCompatActivity() {
 
         bottomNavigationView.selectedItemId = R.id.home
 
+        userprofile_image.setOnClickListener {
+            if (user != null) {
+                Toast.makeText(this, "User Already Sign In", Toast.LENGTH_SHORT).show()
+            } else {
+                showDialogue()
+            }
+
+        }
+    }
+
+    private fun showDialogue() {
+        val builder = AlertDialog.Builder(this)
+        builder.setCancelable(true)
+
+        val viewGroup = findViewById<ViewGroup>(android.R.id.content)
+        val view = LayoutInflater.from(applicationContext)
+            .inflate(R.layout.item_signin_dialogue, viewGroup, false)
+
+        builder.setView(view)
+        val txt_google_signIn = view.findViewById<TextView>(R.id.txt_google_signIn)
+        txt_google_signIn.setOnClickListener {
+            signIn()
+        }
+        builder.create().show()
+    }
+
+    private fun signIn() {
+        mGoogleSignInClient.signOut()
+        val intent = mGoogleSignInClient.signInIntent
+        startActivityForResult(intent, RC_SIGN_IN)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == RC_SIGN_IN) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+
+            try {
+                val account = task.getResult(ApiException::class.java)
+
+                val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+                auth.signInWithCredential(credential).addOnCompleteListener {
+                    if (task.isSuccessful) {
+                        val firebaseUser = FirebaseAuth.getInstance().currentUser
+
+                        val map = HashMap<String, Any?>()
+                        map.put("username", account.displayName)
+                        map.put("email", account.email)
+                        map.put("profile", account.photoUrl)
+                        map.put("uid", firebaseUser?.uid)
+                        map.put("search", account.displayName?.toLowerCase())
+
+                        val reference = FirebaseDatabase.getInstance().getReference().child("Users")
+                        firebaseUser?.uid?.let { it -> reference.child(it).setValue(map) }
+                    } else {
+                        Toast.makeText(this, task.exception?.message, Toast.LENGTH_SHORT).show()
+
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this, e.message, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun selectedFragment(fragment: Fragment) {
@@ -86,17 +181,14 @@ class MainActivity : AppCompatActivity() {
         return super.onCreateOptionsMenu(menu)
     }
 
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when(item.itemId){
-            R.id.notification ->{
+        when (item.itemId) {
+            R.id.notification -> {
                 Toast.makeText(this, "Notification", Toast.LENGTH_SHORT).show()
             }
             R.id.search -> {
                 Toast.makeText(this, "Search", Toast.LENGTH_SHORT).show()
-
-            }
-            R.id.account -> {
-                Toast.makeText(this, "Account", Toast.LENGTH_SHORT).show()
 
             }
             else -> super.onOptionsItemSelected(item)
